@@ -13,12 +13,16 @@ from AppKit import (
     NSMenuItem,
     NSVariableStatusItemLength,
     NSApplicationActivationPolicyAccessory,
+    NSAlert,
+    NSAlertStyleInformational,
+    NSAlertFirstButtonReturn,
+    NSTextField,
 )
+from Foundation import NSMakeRect
 import UserNotifications
 
 # Configuration
-REMINDER_INTERVAL_SECONDS = 1 * 60  # 1 minute for testing (change to 20 * 60 for production)
-CHECK_INTERVAL_SECONDS = 5          # How often to check/update timer
+CHECK_INTERVAL_SECONDS = 5  # How often to check/update timer
 
 
 class PostureCheckApp(NSObject):
@@ -33,6 +37,7 @@ class PostureCheckApp(NSObject):
         self.cycles_completed = 0
         self.menu_is_open = False
         self.live_update_timer = None
+        self.reminder_interval_seconds = 20 * 60  # Default: 20 minutes
 
         # Create status bar item
         self.status_bar = NSStatusBar.systemStatusBar()
@@ -78,6 +83,13 @@ class PostureCheckApp(NSObject):
         )
         self.reset_item.setTarget_(self)
         self.menu.addItem_(self.reset_item)
+
+        # Set Interval button
+        self.interval_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Set Interval...", "showIntervalDialog:", ""
+        )
+        self.interval_item.setTarget_(self)
+        self.menu.addItem_(self.interval_item)
 
         # Separator
         self.menu.addItem_(NSMenuItem.separatorItem())
@@ -136,14 +148,14 @@ class PostureCheckApp(NSObject):
 
     def format_time_elapsed(self):
         """Format elapsed time as MM:SS."""
-        elapsed = min(self.elapsed_active_seconds, REMINDER_INTERVAL_SECONDS)
+        elapsed = min(self.elapsed_active_seconds, self.reminder_interval_seconds)
         minutes = elapsed // 60
         seconds = elapsed % 60
         return f"{minutes:02d}:{seconds:02d}"
 
     def format_progress_bar(self, segments=10):
         """Create a progress bar showing elapsed time."""
-        progress = self.elapsed_active_seconds / REMINDER_INTERVAL_SECONDS
+        progress = self.elapsed_active_seconds / self.reminder_interval_seconds
         progress = min(1.0, max(0.0, progress))
         filled = int(progress * segments)
         empty = segments - filled
@@ -157,7 +169,7 @@ class PostureCheckApp(NSObject):
 
         self.elapsed_active_seconds += CHECK_INTERVAL_SECONDS
 
-        if self.elapsed_active_seconds >= REMINDER_INTERVAL_SECONDS:
+        if self.elapsed_active_seconds >= self.reminder_interval_seconds:
             self.send_reminder()
             self.cycles_completed += 1
             self.elapsed_active_seconds = 0
@@ -232,6 +244,34 @@ class PostureCheckApp(NSObject):
         if self.timer_enabled:
             self.pause_item.setTitle_("Pause Timer")
         self.update_display()
+
+    @objc.typedSelector(b"v@:@")
+    def showIntervalDialog_(self, sender):
+        """Show dialog to set custom interval."""
+        alert = NSAlert.alloc().init()
+        alert.setMessageText_("Set Reminder Interval")
+        alert.setInformativeText_("Enter interval in minutes (1-120):")
+        alert.setAlertStyle_(NSAlertStyleInformational)
+        alert.addButtonWithTitle_("OK")
+        alert.addButtonWithTitle_("Cancel")
+
+        current_minutes = self.reminder_interval_seconds // 60
+        input_field = NSTextField.alloc().initWithFrame_(NSMakeRect(0, 0, 200, 24))
+        input_field.setStringValue_(str(current_minutes))
+        alert.setAccessoryView_(input_field)
+
+        NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+        alert.window().setInitialFirstResponder_(input_field)
+
+        if alert.runModal() == NSAlertFirstButtonReturn:
+            try:
+                value = int(input_field.stringValue())
+                if 1 <= value <= 120:
+                    self.reminder_interval_seconds = value * 60
+                    self.elapsed_active_seconds = 0
+                    self.update_display()
+            except ValueError:
+                pass
 
     @objc.typedSelector(b"v@:@")
     def quitApp_(self, sender):
