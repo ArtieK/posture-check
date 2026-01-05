@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stretch Reminder - A macOS menu bar app that reminds you to stretch every 20 minutes.
+Posture Check - A macOS menu bar app that reminds you to check your posture.
 Uses PyObjC directly for better macOS compatibility.
 """
 
@@ -21,9 +21,9 @@ REMINDER_INTERVAL_SECONDS = 1 * 60  # 1 minute for testing (change to 20 * 60 fo
 CHECK_INTERVAL_SECONDS = 5          # How often to check/update timer
 
 
-class StretchReminderApp(NSObject):
+class PostureCheckApp(NSObject):
     def init(self):
-        self = objc.super(StretchReminderApp, self).init()
+        self = objc.super(PostureCheckApp, self).init()
         if self is None:
             return None
 
@@ -187,7 +187,7 @@ class StretchReminderApp(NSObject):
         content.setSound_(UserNotifications.UNNotificationSound.defaultSound())
 
         request = UserNotifications.UNNotificationRequest.requestWithIdentifier_content_trigger_(
-            "stretch_reminder", content, None
+            "posture_check", content, None
         )
 
         center = UserNotifications.UNUserNotificationCenter.currentNotificationCenter()
@@ -243,8 +243,8 @@ if __name__ == "__main__":
     app = NSApplication.sharedApplication()
     app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
 
-    delegate = StretchReminderApp.alloc().init()
+    delegate = PostureCheckApp.alloc().init()
     app.setDelegate_(delegate)
 
-    print("Stretch Reminder started - check your menu bar for 'Stretch'!")
+    print("Posture Check started - check your menu bar for 'posture'!")
     app.run()
